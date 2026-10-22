@@ -46,8 +46,8 @@ Runs these steps in order. It is idempotent and safe to re-run.
 
 1. **Detect** the installed PHP version and branch.
 2. **Assess** the version against the fixed release for its branch (warns if the branch is EOL).
-3. **Mitigate** immediately — writes `session.upload_progress.enabled = Off` as a
-   `99-cve-2026-109618-mitigation.ini` drop-in into **every** installed SAPI's `conf.d`
+3. **Mitigate** immediately — writes `session.upload_progress.enabled = Off` (plus
+   `fatal_error_backtraces = Off` on 8.5) as a `99-cve-2026-109618-mitigation.ini` drop-in into **every** installed SAPI's `conf.d`
    (`cli`, `fpm`, `apache2`).
 4. **Upgrade** the `php<branch>*` packages via `apt` — the complete fix. Details:
    - On an **end-of-life branch** (PHP ≤ 8.1, which has no patched build) it does **not**
@@ -124,6 +124,8 @@ If you cannot run the script yet, you can close the confirmed attack path in sec
 ```ini
 ; in php.ini or a conf.d drop-in for the SAPI serving your site
 session.upload_progress.enabled = Off
+; PHP 8.5 only
+fatal_error_backtraces = Off
 ```
 
 Then reload the web PHP process (`systemctl restart php8.5-fpm` / `apache2`).
