@@ -104,6 +104,7 @@ sudo ./patch-php-cve-2026-109618-109619.sh --mitigate-only
 |------|--------|
 | `--dry-run` | Print the exact actions without executing them. Works without root. |
 | `--mitigate-only` | Apply only step 3 (disable `session.upload_progress`); skip the package upgrade. |
+| `--add-ppa` | If apt has no fixed build, add Ondřej Surý's PHP repository without prompting (otherwise the script asks `[y/N]` on a terminal and declines in non-interactive runs). |
 | `-h`, `--help` | Show the header documentation. |
 
 ### Exit codes
