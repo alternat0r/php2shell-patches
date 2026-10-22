@@ -59,14 +59,21 @@ Runs these steps in order. It is idempotent and safe to re-run.
      and **refuses to proceed** if your repositories are not yet serving the patched build
      (so it never pulls from an untrusted source just to appear successful).
 5. **Restart** `php<branch>-fpm` / `apache2` / `nginx` if they are running.
-6. **Verify** — confirms the running version now meets the fix, performs a
-   **mitigation self-check** (that `session.upload_progress.enabled` reads `Off`), then prints
-   a post-compromise checklist.
+6. **Verify** and print a verdict for this host — **SECURED**, **PATCHED ON DISK, RESTART
+   REQUIRED**, or **VULNERABLE** — based on:
+   - the PHP version, or (for distro builds such as `8.5.4-0ubuntu1.5`) the installed
+     `php<branch>-common` changelog naming **both** CVE IDs, with the matching entry shown;
+   - `apt policy` for `php<branch>-common`: installed and candidate versions and the
+     repository the installed build came from;
+   - every installed package built from the `php<branch>` source being at the **same** version
+     (catches partial upgrades that left e.g. `php<branch>-fpm` behind);
+   - each running PHP service (`php<branch>-fpm`, and `apache2` when `mod_php` is enabled)
+     **not** still mapping PHP files that the upgrade replaced, and having loaded the
+     mitigation drop-in.
 
-> **Note on the mitigation self-check:** it reads the value from the **CLI** SAPI. The web
-> SAPI (FPM/Apache) loads the same drop-in, so this is a reliable proxy — but it is not proof
-> the running web worker re-read its config. Confirm externally against the restarted site
-> (see `check.php` below).
+   It then prints a post-compromise checklist. The verdict is also printed for `--dry-run`
+   and `--mitigate-only`, so `sudo ./patch-php-cve-2026-109618-109619.sh --dry-run` doubles
+   as a status check.
 
 ---
 
@@ -111,8 +118,9 @@ sudo ./patch-php-cve-2026-109618-109619.sh --mitigate-only
 
 | Code | Meaning |
 |------|---------|
-| `0`  | Already patched, dry run completed, or patch applied and verified. |
+| `0`  | Verdict SECURED, or a `--dry-run` / `--mitigate-only` run completed (read the printed verdict). |
 | `1`  | Not fully patched — repo lacks the fixed build, branch is EOL, or verification failed. |
+| `3`  | Fixed packages are installed but a running PHP service still uses the old code — restart it. |
 | `2`  | Unknown option. |
 
 ---
