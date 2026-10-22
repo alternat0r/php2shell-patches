@@ -7,9 +7,9 @@
  *     php check.php <domain-or-URL> [--insecure] [--json]
  *
  * Examples:
- *     php check.php example.com
- *     php check.php https://example.com/
- *     php check.php https://example.com --json
+ *     php check.php your-domain.example
+ *     php check.php https://your-domain.example/
+ *     php check.php https://your-domain.example --json
  *
  * WHAT IT DOES
  *     Sends a single, ordinary HTTP(S) request (like a browser would) and reads

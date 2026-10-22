@@ -139,8 +139,8 @@ A companion script confirms the patch from the **outside**, the way a client see
 ```bash
 php check.php <domain-or-URL> [--insecure] [--json]
 
-php check.php ly.my
-php check.php https://ly.my/ --json
+php check.php your-domain.example
+php check.php https://your-domain.example/ --json
 ```
 
 It sends a **single ordinary HTTP request** and reads the PHP version from the
