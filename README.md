@@ -38,6 +38,23 @@ This repository contains two scripts:
 | 8.2    | **8.2.35** |
 | ≤ 8.1  | **No fix — end of life.** You must migrate to a supported branch. |
 
+### CVE-2026-115560 — no fixed release yet
+
+On 2026-10-23 PHP published an informational advisory about another RCE vector in session
+upload progress. **No PHP release fixes it yet.** The fix will ship in the next regular
+bugfix release, with a full advisory. It is **not** covered by 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35.
+
+Exploiting it needs all of the following:
+
+- `session.upload_progress.enabled` is on (the default);
+- `session.serialize_handler` is configured as `php_binary` or `php_serialize`;
+- the application switches it back to `php` with `ini_set()` before `session_start()`. This
+  call can also come from a Composer dependency.
+
+PHP's advice is `session.upload_progress.enabled = 0` until the fix ships. That is the same
+setting the mitigation drop-in already writes, so **keep the drop-in after upgrading.** No
+exploitation has been reported so far.
+
 ---
 
 ## What the script does
@@ -70,6 +87,15 @@ Runs these steps in order. It is idempotent and safe to re-run.
    - each running PHP service (`php<branch>-fpm`, and `apache2` when `mod_php` is enabled)
      **not** still mapping PHP files that the upgrade replaced, and having loaded the
      mitigation drop-in.
+
+   - **CVE-2026-115560** (no fixed release): the *effective* `session.upload_progress.enabled`
+     and `session.serialize_handler` for each SAPI (`fpm`, `apache2`, `cgi`). These come from
+     `php.ini` + `conf.d` plus any `php_value` / `php_admin_value` overrides, checked per
+     FPM pool and in the Apache config. It also lists `.user.ini` / `.htaccess` files and
+     PHP code under `$WEBROOT` (default `/var/www`) that set these values or call
+     `ini_set('session.serialize_handler', …)`. If upload progress is on **and** the trigger
+     is present, the verdict is **VULNERABLE** even when the packages are fully patched.
+     If upload progress is merely on, it prints a warning.
 
    It then prints a post-compromise checklist. The verdict is also printed for `--dry-run`
    and `--mitigate-only`, so `sudo ./patch-php-cve-2026-109618-109619.sh --dry-run` doubles
@@ -114,12 +140,15 @@ sudo ./patch-php-cve-2026-109618-109619.sh --mitigate-only
 | `--add-ppa` | If apt has no fixed build, add Ondřej Surý's PHP repository without prompting (otherwise the script asks `[y/N]` on a terminal and declines in non-interactive runs). |
 | `-h`, `--help` | Show the header documentation. |
 
+Set `WEBROOT=/srv/www` (environment variable) to scan a different web root for the
+CVE-2026-115560 trigger, e.g. `sudo WEBROOT=/srv/www ./patch-php-cve-2026-109618-109619.sh --dry-run`.
+
 ### Exit codes
 
 | Code | Meaning |
 |------|---------|
 | `0`  | Verdict SECURED, or a `--dry-run` / `--mitigate-only` run completed (read the printed verdict). |
-| `1`  | Not fully patched — repo lacks the fixed build, branch is EOL, or verification failed. |
+| `1`  | Not fully patched — repo lacks the fixed build, branch is EOL, verification failed, or session upload progress is on where the CVE-2026-115560 trigger is present. |
 | `3`  | Fixed packages are installed but a running PHP service still uses the old code — restart it. |
 | `2`  | Unknown option. |
 
@@ -140,6 +169,9 @@ Then reload the web PHP process (`systemctl restart php8.5-fpm` / `apache2`).
 
 > This blocks the **confirmed** exploitation path but is **not** the complete fix.
 > Upgrading the PHP packages is the only full remediation.
+>
+> **Leave `session.upload_progress.enabled = Off` in place after upgrading.** It is currently
+> the only protection against CVE-2026-115560, which no release fixes yet.
 
 ---
 
@@ -167,6 +199,10 @@ It sends a **single ordinary HTTP request** and reads the PHP version from the
 **It sends no exploit payload** — no `session.upload_progress` / attack traffic, nothing that
 could crash or alter the target. It reads version banners only, so it verifies the *deployed
 version* (which is what proves a patch landed) without attacking anything.
+
+`check.php` **cannot detect CVE-2026-115560.** No release fixes it, and exposure depends on
+server configuration, not the version. Its output includes a reminder; use the patch
+script (`--dry-run`) on the host to check it.
 
 **Interpreting results:**
 - `UNKNOWN` is common and usually **good** — it means the server hides its version
@@ -208,6 +244,8 @@ Each run writes a timestamped log to:
 ## References
 
 - PHP ChangeLog: <https://www.php.net/ChangeLog-8.php>
+- PHP advisory on CVE-2026-115560 (2026-10-23): <https://www.php.net/>
+- The Hacker News (CVE-2026-115560): <https://thehackernews.com/2026/10/urgent-php-warns-of-another-unpatched.html>
 - Sansec research (PHP2Shell): <https://sansec.io/research/php2shell>
 - Cisco Talos: <https://blog.talosintelligence.com/two-critical-rces-in-php-core/>
 - Unit 42 (Palo Alto Networks): <https://unit42.paloaltonetworks.com/cve-2026-109618-cve-2026-109619/>

@@ -45,6 +45,12 @@ const FIXED = [
 ];
 // Branches 8.1 and earlier are end-of-life: no fix, always treated vulnerable.
 
+// CVE-2026-115560 (PHP advisory 2026-10-23) has no fixed release yet and only
+// affects some session configurations, so no version banner can show it.
+const UNPATCHED_NOTE = 'CVE-2026-115560 has no fixed release yet and depends on server configuration, '
+                     . 'which a banner cannot show. Make sure session.upload_progress.enabled = 0 on the host '
+                     . '(the patch script checks this).';
+
 // ---- parse args -----------------------------------------------------------
 $args = array_slice($argv, 1);
 $insecure = false;
@@ -157,7 +163,8 @@ if ($phpVersion === null) {
                 . "Migrate to a supported, patched branch.";
     } elseif (version_compare($phpVersion, FIXED[$branch], '>=')) {
         $status = 'PATCHED';
-        $detail = "PHP $phpVersion >= fixed release " . FIXED[$branch] . " for branch $branch.";
+        $detail = "PHP $phpVersion >= fixed release " . FIXED[$branch] . " for branch $branch "
+                . "(CVE-2026-109618/109619).";
     } else {
         $status = 'VULNERABLE';
         $detail = "PHP $phpVersion is below the fixed release " . FIXED[$branch] . " for branch $branch.";
@@ -173,6 +180,7 @@ $result = [
     'detail'      => $detail,
     'note'        => 'Banner-based check; no exploit sent. A banner can be spoofed or stale — '
                    . 'confirm on the server with `php -v` for authoritative results.',
+    'unpatched'   => UNPATCHED_NOTE,
 ];
 
 if ($json) {
@@ -186,6 +194,7 @@ if ($json) {
     echo "Status : {$mark}{$status}{$rst}\n";
     echo "Detail : {$detail}\n";
     echo "Note   : {$result['note']}\n";
+    echo "Also   : " . UNPATCHED_NOTE . "\n";
 }
 
 exit(['PATCHED' => 0, 'VULNERABLE' => 1, 'UNKNOWN' => 2][$status]);
